@@ -24,7 +24,7 @@ of a pfSense configuration file.
 Example usage:
 
     xml_string = "...your pfSense XML config..."
-    data_dict = xmltodict.parse(xml_string)
+    data_dict = xmltodict.parse(xml_string, force_list=("user", "group", "staticmap"))
     config = PfSense(**data_dict['pfsense'])
     print(config.system.hostname)
 """
@@ -43,14 +43,14 @@ class Group(BaseModel):
     description: str
     scope: str
     gid: int
-    member: Optional[Union[int, List[int]]] = None  # Can be a single int or a list of ints
+    member: Optional[Union[int, List[int]]] = None
     priv: Optional[str] = None
 
 
 class User(BaseModel):
     name: str
     descr: Optional[str] = None
-    scope: str # TODO: Add enum
+    scope: str  # TODO: Add enum
     groupname: Optional[str] = None
     bcrypt_hash: str = Field(alias="bcrypt-hash")
     uid: int
@@ -110,6 +110,24 @@ class System(BaseModel):
 
 # Interface Configuration Models
 class InterfaceWan(BaseModel):
+    """
+    Represents the configuration schema for a WAN interface in pfSense.
+
+    Attributes:
+        enable (Optional[str]): Indicates if the interface is enabled.
+        if_ (str): The interface identifier (aliased as "if").
+        descr (str): Description of the interface.
+        ipaddr (str): IPv4 address assigned to the interface.
+        dhcphostname (Optional[str]): DHCP hostname for the interface.
+        alias_address (Optional[str]): Alias IPv4 address (aliased as "alias-address").
+        alias_subnet (Optional[str]): Alias subnet mask (aliased as "alias-subnet", e.g., "32").
+        dhcprejectfrom (Optional[str]): List of DHCP servers to reject.
+        ipaddrv6 (str): IPv6 address assigned to the interface.
+        dhcp6_duid (Optional[str]): DHCPv6 DUID (aliased as "dhcp6-duid").
+        dhcp6_ia_pd_len (int): DHCPv6 IA_PD prefix length (aliased as "dhcp6-ia-pd-len").
+        spoofmac (Optional[str]): MAC address to spoof on the interface.
+    """
+
     enable: Optional[str] = None
     if_: str = Field(alias="if")
     descr: str
@@ -142,6 +160,24 @@ class InterfaceWan(BaseModel):
 
 
 class InterfaceLan(BaseModel):
+    """
+    Represents the configuration schema for a LAN interface in pfSense.
+
+    Attributes:
+        enable (Optional[str]): Indicates if the interface is enabled.
+        if_ (str): The interface identifier (aliased from "if").
+        ipaddr (str): The IPv4 address assigned to the interface.
+        subnet (str): The IPv4 subnet mask in CIDR notation (e.g., "24").
+        ipaddrv6 (Optional[str]): The IPv6 address assigned to the interface.
+        subnetv6 (Optional[str]): The IPv6 subnet mask in CIDR notation.
+        media (Optional[str]): The media type for the interface (e.g., "1000baseT").
+        mediaopt (Optional[str]): Media options for the interface.
+        track6_interface (Optional[str]): The interface to track for IPv6 (aliased from "track6-interface").
+        track6_prefix_id (Optional[int]): The prefix ID for IPv6 tracking (aliased from "track6-prefix-id").
+        gateway (Optional[str]): The IPv4 gateway for the interface.
+        gatewayv6 (Optional[str]): The IPv6 gateway for the interface.
+    """
+
     enable: Optional[str] = None
     if_: str = Field(alias="if")
     # descr: Optional[str] = None # Not present in LAN example, but typical
@@ -189,6 +225,13 @@ class Dhcpdv6(BaseModel):
 
 # SNMPD Model
 class Snmpd(BaseModel):
+    """
+    SNMP (Simple Network Management Protocol) is a protocol used for monitoring and managing network devices.
+
+    In pfSense, the SNMP daemon allows external systems to collect information and statistics about the firewall,
+    such as interface status, traffic counters, and system health.
+    """
+
     syslocation: Optional[str] = None
     syscontact: Optional[str] = None
     rocommunity: str
@@ -356,19 +399,22 @@ class Cron(BaseModel):
     item: List[CronItem]
 
 
-# RRDTool Model
 class Rrd(BaseModel):
+    """RRDTool Model."""
+
     enable: Optional[str] = None
 
 
-# Dashboard Widgets Model
 class Widgets(BaseModel):
+    """Dashboard Widgets Model."""
+
     sequence: str
     period: int
 
 
-# Unbound DNS Resolver Model
 class Unbound(BaseModel):
+    """Unbound DNS Resolver Model."""
+
     enable: Optional[str] = None
     dnssec: Optional[str] = None
     active_interface: Optional[str] = None
@@ -379,15 +425,16 @@ class Unbound(BaseModel):
     dnssecstripped: Optional[str] = None
 
 
-# Revision History Model
 class Revision(BaseModel):
+    """Revision History Model"""
+
     time: int
     description: str
     username: str
 
 
-# NTPD (Network Time Protocol Daemon) Model
-class NtpdGps(BaseModel):  # For <gps></gps>
+# TODO: write this model
+class NtpdGps(BaseModel):
     pass
 
 
@@ -395,16 +442,25 @@ class Ntpd(BaseModel):
     gps: Optional[Union[str, NtpdGps]] = None
 
 
-# Certificate Model
 class Cert(BaseModel):
+    """
+    Represents a certificate configuration.
+
+    Attributes:
+        refid (str): Unique reference identifier for the certificate.
+        descr (str): Description of the certificate.
+        type (str): Type of the certificate (e.g., 'CA', 'server', 'user').
+        crt (str): Base64 encoded certificate data.
+        prv (str): Base64 encoded private key data.
+    """
+
     refid: str
     descr: str
     type: str
-    crt: str  # Base64 encoded cert data
-    prv: str  # Base64 encoded private key data
+    crt: str
+    prv: str
 
 
-# Setup Wizard Temporary State Model
 class WizardTempSystem(BaseModel):
     hostname: str
     domain: str
@@ -457,7 +513,7 @@ class PluginItem(BaseModel):
 
 
 class Plugins(BaseModel):
-    item: List[PluginItem]  # Assuming list based on typical <item> usage
+    item: List[PluginItem]
 
 
 class InstalledPackage(BaseModel):
@@ -482,6 +538,7 @@ class Menu(BaseModel):
 
 
 class InstalledPackages(BaseModel):
+    # TODO: Resolve InstalledPackages model problems
     # package: List[
     #     InstalledPackage
     # ]
@@ -490,7 +547,6 @@ class InstalledPackages(BaseModel):
     menu: Optional[Any]
 
 
-# SSH Data (Host Keys) Model
 class SSHKeyFile(BaseModel):
     filename: str
     xmldata: str  # Base64 encoded key data
@@ -500,13 +556,56 @@ class SshData(BaseModel):
     sshkeyfile: List[SSHKeyFile]
 
 
-# Root pfSense Configuration Model
 class PfSense(BaseModel):
+    """
+    PfSense configuration schema model.
+
+    This model represents the structure of a pfSense configuration file, encapsulating
+    all the settings defined in the pfSense ecosystem.
+
+    Attributes:
+        version (str): The configuration version.
+        lastchange (Optional[str]): Timestamp or identifier of the last configuration change.
+        system (System): System-level configuration.
+        interfaces (Interfaces): Network interfaces configuration.
+        staticroutes (Optional[Union[str, EmptyContent]]): Static routes configuration or empty.
+        dhcpd (Dhcpd): DHCPv4 server configuration.
+        dhcpdv6 (Dhcpdv6): DHCPv6 server configuration.
+        snmpd (Snmpd): Simple Network Management Protocol daemon configuration.
+        diag (Diag): Diagnostics configuration.
+        syslog (Syslog): System logging configuration.
+        nat (Nat): Network Address Translation configuration.
+        filter (Filter): Firewall filter configuration.
+        shaper (Optional[Union[str, EmptyContent]]): Traffic shaper configuration or empty.
+        ipsec (Ipsec): IPsec VPN configuration.
+        aliases (Optional[Union[str, EmptyContent]]): Aliases configuration or empty.
+        proxyarp (Optional[Union[str, EmptyContent]]): Proxy ARP configuration or empty.
+        cron (Cron): Cron jobs configuration.
+        wol (Optional[Union[str, EmptyContent]]): Wake-on-LAN configuration or empty.
+        rrd (Rrd): Round Robin Database, used for time-series data configuration.
+        widgets (Widgets): Dashboard widgets configuration.
+        openvpn (Optional[Union[str, EmptyContent]]): OpenVPN configuration or empty.
+        dnshaper (Optional[Union[str, EmptyContent]]): DNS shaper configuration or empty.
+        unbound (Unbound): Unbound DNS resolver configuration.
+        vlans (Optional[Union[str, EmptyContent]]): Virtual LANs configuration or empty.
+        qinqs (Optional[Union[str, EmptyContent]]): QinQ VLAN configuration or empty.
+        revision (Revision): Configuration revision information.
+        gateways (Optional[Union[str, EmptyContent]]): Gateways configuration or empty.
+        captiveportal (Optional[Union[str, EmptyContent]]): Captive portal configuration or empty.
+        dnsmasq (Optional[Union[str, EmptyContent]]): Dnsmasq (DNS forwarder, DHCP server, and TFTP server) configuration or empty.
+        ntpd (Ntpd): NTP daemon configuration.
+        cert (Cert): Main certificate for GUI and other services.
+        wizardtemp (WizardTemp): Temporary wizard data.
+        ppps (Optional[Union[str, EmptyContent]]): Point-to-Point Protocols configuration or empty.
+        installedpackages (InstalledPackages): READ ONLY! Installed packages configuration.
+        sshdata (Optional[SshData]): SSH-related configuration data.
+    """
+
     version: str
     lastchange: Optional[str] = None
     system: System
     interfaces: Interfaces
-    staticroutes: Optional[Union[str, EmptyContent]] = None  # Empty tag
+    staticroutes: Optional[Union[str, EmptyContent]] = None
     dhcpd: Dhcpd
     dhcpdv6: Dhcpdv6
     snmpd: Snmpd
@@ -514,26 +613,26 @@ class PfSense(BaseModel):
     syslog: Syslog
     nat: Nat
     filter: Filter
-    shaper: Optional[Union[str, EmptyContent]] = None  # Empty tag
+    shaper: Optional[Union[str, EmptyContent]] = None
     ipsec: Ipsec
-    aliases: Optional[Union[str, EmptyContent]] = None  # Empty tag
-    proxyarp: Optional[Union[str, EmptyContent]] = None  # Empty tag
+    aliases: Optional[Union[str, EmptyContent]] = None
+    proxyarp: Optional[Union[str, EmptyContent]] = None
     cron: Cron
-    wol: Optional[Union[str, EmptyContent]] = None  # Empty tag
+    wol: Optional[Union[str, EmptyContent]] = None
     rrd: Rrd
     widgets: Widgets
-    openvpn: Optional[Union[str, EmptyContent]] = None  # Empty tag
-    dnshaper: Optional[Union[str, EmptyContent]] = None  # Empty tag
+    openvpn: Optional[Union[str, EmptyContent]] = None
+    dnshaper: Optional[Union[str, EmptyContent]] = None
     unbound: Unbound
-    vlans: Optional[Union[str, EmptyContent]] = None  # Empty tag
-    qinqs: Optional[Union[str, EmptyContent]] = None  # Empty tag
+    vlans: Optional[Union[str, EmptyContent]] = None
+    qinqs: Optional[Union[str, EmptyContent]] = None
     revision: Revision
-    gateways: Optional[Union[str, EmptyContent]] = None  # Empty tag
-    captiveportal: Optional[Union[str, EmptyContent]] = None  # Empty tag
-    dnsmasq: Optional[Union[str, EmptyContent]] = None  # Empty tag
+    gateways: Optional[Union[str, EmptyContent]] = None
+    captiveportal: Optional[Union[str, EmptyContent]] = None
+    dnsmasq: Optional[Union[str, EmptyContent]] = None
     ntpd: Ntpd
     cert: Cert  # Single main certificate for GUI, etc.
     wizardtemp: WizardTemp
-    ppps: Optional[Union[str, EmptyContent]] = None  # Empty tag
+    ppps: Optional[Union[str, EmptyContent]] = None
     installedpackages: InstalledPackages
     sshdata: Optional[SshData] = None
