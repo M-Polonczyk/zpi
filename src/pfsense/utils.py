@@ -102,7 +102,7 @@ def load_pfsense_config_from_file(file_path: str) -> PfSense:
         config_xml = file.read()
 
     # Convert XML to dict
-    config_dict = xmltodict.parse(config_xml)
+    config_dict = xmltodict.parse(config_xml, force_list=("user", "group", "staticmap"))
 
     # Parse with Pydantic
     pfsense_config = PfSense(**config_dict["pfsense"])
