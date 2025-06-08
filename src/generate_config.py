@@ -43,7 +43,7 @@ def zapytaj_model(prompt) -> Optional[PfSense]:
                 "stream": False,
                 "format": PfSense.model_json_schema(),
             },
-            timeout=180
+            timeout=420
         )
     except requests.exceptions.RequestException as e:
         print("❌ Błąd połączenia z Ollama:", e)

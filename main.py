@@ -20,7 +20,7 @@ def main():
 
     # push_pfsense_config(config=config)
     
-    opis = "Reduce the noise from firewall logs"
+    opis = "Change the DHCP range on the LAN interface from 192.168.1.10 to 192.168.1.20"
     zmiana = wygeneruj_zmiane_konfiguracji(opis)
     if zmiana:
         print("✅ Wygenerowana zmiana:")
