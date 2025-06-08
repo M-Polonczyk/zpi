@@ -28,21 +28,23 @@ def main():
     # Load from pfSense device
     # config = fetch_pfsense_config()
 
-    # print(f"{config.dhcpd.lan.range=}")
-    # config.dhcpd.lan.range.from_ = "192.168.1.10"
-    # config.dhcpd.lan.range.to = "192.168.1.120"
-    # print(f"{config.dhcpd.lan.range=}")
+    print(f"{config.dhcpd.lan.range=}")
+    config.dhcpd.lan.range.from_ = "192.168.1.10"
+    config.dhcpd.lan.range.to = "192.168.1.120"
+    print(f"{config.dhcpd.lan.range=}")
 
     # push_pfsense_config(config=config)
 
     opis = "Change the DHCP range on the LAN interface to maximum of 60 IPs"
-    zmiana = wygeneruj_zmiane_konfiguracji(opis, config)
-    if zmiana:
+    updated_config = wygeneruj_zmiane_konfiguracji(opis, config)
+    if updated_config:
         print("✅ Wygenerowana zmiana:")
-        print(zmiana)
+        print(updated_config)
     else:
         print("❌ Nie udało się wygenerować konfiguracji.")
+        return
 
+    print(f"{updated_config.dhcpd.lan.range=}")
 
 if __name__ == "__main__":
     main()
