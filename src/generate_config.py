@@ -1,10 +1,13 @@
+from pathlib import Path
+from typing import Optional
 import numpy as np
 import re
 import requests
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from .pfsense.config import PfSense
 
-data = np.load(r"C:\Users\tomai\Documents\projekt_zpi\file_embeddings.npz", allow_pickle=True)
+data = np.load(Path("data/file_embeddings.npz"), allow_pickle=True)
 fragmenty = data["fragmenty"]
 fragmenty_embed = data["wektory"]
 
@@ -21,9 +24,7 @@ def przygotuj_prompt(kontekst, opis_zmiany):
 Jesteś asystentem DevOps. Twoim zadaniem jest wygenerować zmianę w konfiguracji systemu w formacie XML.
 
 Zasady:
-- Odpowiedz tylko czystym XML-em.
-- Nie dodawaj żadnych komentarzy, opisów ani tekstu poza XML-em.
-- Odpowiedź musi zaczynać się od < i kończyć na >
+- Nie dodawaj żadnych komentarzy, opisów ani tekstu.
 
 Fragment dokumentacji:
 {kontekst}
@@ -32,14 +33,15 @@ Opis: {opis_zmiany}
 Odpowiedź:
 """.strip()
 
-def zapytaj_model(prompt):
+def zapytaj_model(prompt) -> Optional[PfSense]:
     try:
         response = requests.post(
             "http://localhost:11434/api/generate",
             json={
                 "model": "deepseek-r1:latest",
                 "prompt": prompt,
-                "stream": False
+                "stream": False,
+                "format": PfSense.model_json_schema(),
             },
             timeout=180
         )
