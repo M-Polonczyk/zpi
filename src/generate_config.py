@@ -32,7 +32,7 @@ Zasady:
 - Nie zmieniaj reszty konfiguracji, jeżeli nie jest to związane z zapytaniem.
 
 Konfiguracja pfSense:
-{config if config else "Brak konfiguracji"}
+{config.model_dump() if config else "Brak konfiguracji"}
 
 Fragment dokumentacji:
 {context}
@@ -68,9 +68,9 @@ def zapytaj_model(prompt) -> Optional[PfSense]:
         return None
 
 
-def wygeneruj_zmiane_konfiguracji(opis_zmiany):
+def wygeneruj_zmiane_konfiguracji(opis_zmiany, config: Optional[PfSense] = None) -> Optional[PfSense]:
     kontekst = znajdz_najblizszy_fragment(opis_zmiany)
-    prompt = create_prompt(kontekst, opis_zmiany)
+    prompt = create_prompt(kontekst, opis_zmiany, config)
     print("🔍 Najbardziej pasujący fragment:\n", kontekst)
     print("📝 Prompt wysłany do modelu:\n", prompt)
     return zapytaj_model(prompt)
