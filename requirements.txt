@@ -2,7 +2,7 @@ python-dotenv>=1.1.0
 paramiko>=3.5.1
 xmltodict>=0.14.2
 pydantic>=2.11.5
-numpy>=2.3.0
-sentence-transformers>=4.41.0
+numpy
+sentence-transformers
 scikit-learn>=1.7.0
 PyMuPDF>=1.26.0
