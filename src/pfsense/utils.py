@@ -12,6 +12,9 @@ from .config.settings import (
     PFSENSE_HOST,
 )
 
+class PfSenseError(Exception):
+    """Custom exception for pfSense operations."""
+    pass
 
 def fetch_pfsense_config(
     key_filepath: Optional[str] = None,
@@ -27,8 +30,14 @@ def fetch_pfsense_config(
             PFSENSE_HOST, username=PFSENSE_USERNAME, password=PFSENSE_PASSWORD
         )
 
-    # Run cat to read config
-    stdin, stdout, stderr = client.exec_command(f"cat {CONFIG_DIR}")
+    _, stdout, stderr = client.exec_command(f"cat {CONFIG_DIR}")
+
+    if stderr.channel.recv_exit_status() != 0:
+        error_message = stderr.read().decode()
+        print(f"[!] Error fetching config: {error_message}")
+        client.close()
+        raise PfSenseError("Failed to fetch pfSense configuration.")
+
     config_xml = stdout.read().decode()
     client.close()
 

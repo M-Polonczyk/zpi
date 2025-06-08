@@ -5,7 +5,7 @@ import re
 import requests
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from .pfsense.config import PfSense
+from .pfsense.config import PfSense, OLLAMA_HOST
 
 data = np.load(Path("data/file_embeddings.npz"), allow_pickle=True)
 fragmenty = data["fragmenty"]
@@ -36,20 +36,21 @@ Odpowiedź:
 def zapytaj_model(prompt) -> Optional[PfSense]:
     try:
         response = requests.post(
-            "http://localhost:11434/api/generate",
+            f"{OLLAMA_HOST}/api/generate",
             json={
                 "model": "deepseek-r1:latest",
                 "prompt": prompt,
                 "stream": False,
                 "format": PfSense.model_json_schema(),
             },
-            timeout=180
+            timeout=360
         )
     except requests.exceptions.RequestException as e:
         print("❌ Błąd połączenia z Ollama:", e)
         return None
 
     if response.status_code == 200:
+        print(f"{response.json()=}")
         odpowiedz = response.json().get("response", "").strip()
         match = re.search(r"<[^>]+>.*<\/[^>]+>", odpowiedz, re.DOTALL)
         return match.group(0).strip() if match else None

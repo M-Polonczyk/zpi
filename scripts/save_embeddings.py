@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-import fitz  # PyMuPDF
+import fitz
 from sentence_transformers import SentenceTransformer
 
 
