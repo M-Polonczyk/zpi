@@ -4,9 +4,32 @@ from src.pfsense import (
     push_pfsense_config,
     load_pfsense_config_from_file,
 )
-from src.pfsense.config import PfSense
-
 from src.generate_config import wygeneruj_zmiane_konfiguracji
+
+
+def change_dhcp_range_example():
+    config = load_pfsense_config_from_file("example_config.xml")
+    print(f"{config.dhcpd.lan.range=}")
+
+    # Remove crt and xml data before sending prompt
+    sshdata = config.sshdata.model_copy() if config.sshdata else None
+    cert = config.cert.model_copy() if config.cert else None
+    config.sshdata = None
+    config.cert = None
+
+    opis = "Change the DHCP range on the LAN interface to maximum of 60 IPs"
+    updated_config = wygeneruj_zmiane_konfiguracji(opis, config)
+    if not updated_config:
+        print("❌ Nie udało się wygenerować konfiguracji.")
+        return
+
+    print("✅ Wygenerowana zmiana:")
+    print(updated_config)
+    print(f"{updated_config.dhcpd.lan.range=}")
+
+    # Restore sshdata and cert after generating the config
+    updated_config.sshdata = sshdata
+    updated_config.cert = cert
 
 
 def main():
@@ -23,25 +46,26 @@ def main():
     # print(f"{config.dhcpd=}")
 
     # Load from example file
-    config = load_pfsense_config_from_file("example_config.xml")
+    # config = load_pfsense_config_from_file("example_config.xml")
 
     # Load from pfSense device
     # config = fetch_pfsense_config()
 
-    print(f"{config.dhcpd.lan.range=}")
+    # print(f"{config.dhcpd.lan.range=}")
 
     # push_pfsense_config(config=config)
 
-    opis = "Change the DHCP range on the LAN interface to maximum of 60 IPs"
-    updated_config = wygeneruj_zmiane_konfiguracji(opis, config)
-    if updated_config:
-        print("✅ Wygenerowana zmiana:")
-        print(updated_config)
-    else:
-        print("❌ Nie udało się wygenerować konfiguracji.")
-        return
+    # opis = "Change the DHCP range on the LAN interface to maximum of 60 IPs"
+    # updated_config = wygeneruj_zmiane_konfiguracji(opis, config)
+    # if not updated_config:
+    #     print("❌ Nie udało się wygenerować konfiguracji.")
+    #     return
 
-    print(f"{updated_config.dhcpd.lan.range=}")
+    # print("✅ Wygenerowana zmiana:")
+    # print(updated_config)
+    # print(f"{updated_config.dhcpd.lan.range=}")
+    change_dhcp_range_example()
+
 
 if __name__ == "__main__":
     main()
