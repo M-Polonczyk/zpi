@@ -43,11 +43,14 @@ services:
     restart: unless-stopped
 
   frontend:
-    restart: always
+    container_name: frontend
     build:
       context: ./frontend
       args:
         - VITE_API_URL=${VITE_API_URL?Variable not set}
+    ports:
+      - 80:80
+    restart: always
 
 volumes:
   ollama_data:
