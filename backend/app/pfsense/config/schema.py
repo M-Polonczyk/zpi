@@ -46,7 +46,7 @@ def validate_ipv4_address(value: str | None) -> str | None:
         return value
 
     # Allow special values for DHCP
-    if value.lower() in ["dhcp", "pppoe", "ppp", "static", "none"]:
+    if value.lower() in ["any", "lan", "wan", "dhcp", "pppoe", "ppp", "static", "none"]:
         return value
 
     try:
@@ -63,7 +63,7 @@ def validate_ipv6_address(value: str | None) -> str | None:
         return value
 
     # Allow special values for DHCPv6
-    if value.lower() in ["dhcp6", "6rd", "6to4", "static", "none", "track6"]:
+    if value.lower() in ["any", "lan", "wan", "dhcp6", "6rd", "6to4", "static", "none", "track6"]:
         return value
 
     try:
@@ -80,7 +80,7 @@ def validate_network_address(value: str | None) -> str | None:
         return value
 
     # Allow special network values
-    special_values = ["any", "self", "(self)", "wansubnet", "lansubnet"]
+    special_values = ["any", "lan", "wan", "self", "(self)", "wansubnet", "lansubnet"]
     if value.lower() in special_values:
         return value
 
@@ -357,11 +357,15 @@ class Range(BaseModel):
     @field_validator("from_")
     @classmethod
     def validate_from(cls, v):
+        if ":" in v:
+            return validate_ipv6_address(v)
         return validate_ipv4_address(v)
 
     @field_validator("to")
     @classmethod
     def validate_to(cls, v):
+        if ":" in v:
+            return validate_ipv6_address(v)
         return validate_ipv4_address(v)
 
 
