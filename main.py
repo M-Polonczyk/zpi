@@ -1,10 +1,11 @@
 import json
-from src.pfsense import (
+from pfsense import (
     fetch_pfsense_config,
     push_pfsense_config,
     load_pfsense_config_from_file,
+    validate_pfsense_config,
 )
-from src.generate_config import wygeneruj_zmiane_konfiguracji
+from rag.generate_config import wygeneruj_zmiane_konfiguracji
 
 
 def change_dhcp_range_example():
@@ -46,8 +47,9 @@ def main():
     # print(f"{config.dhcpd=}")
 
     # Load from example file
-    # config = load_pfsense_config_from_file("example_config.xml")
+    config = load_pfsense_config_from_file("example_config.xml")
 
+    validate_pfsense_config(config)
     # Load from pfSense device
     # config = fetch_pfsense_config()
 
@@ -64,7 +66,7 @@ def main():
     # print("✅ Wygenerowana zmiana:")
     # print(updated_config)
     # print(f"{updated_config.dhcpd.lan.range=}")
-    change_dhcp_range_example()
+    # change_dhcp_range_example()
 
 
 if __name__ == "__main__":

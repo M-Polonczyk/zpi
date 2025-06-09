@@ -1,8 +1,8 @@
 import os
+
 from dotenv import load_dotenv
 
 if os.path.exists(".env"):
-    print("[*] Loading environment variables from .env file")
     load_dotenv()
 
 CONFIG_DIR = os.environ.get("CONFIG_DIR", "/conf/config.xml")

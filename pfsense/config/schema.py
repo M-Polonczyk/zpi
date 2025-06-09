@@ -29,12 +29,113 @@ Example usage:
     print(config.system.hostname)
 """
 
-from pydantic import BaseModel, Field
-from typing import Any, List, Optional, Union
+import ipaddress
+import re
+from typing import Any
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class EmptyContent(BaseModel):
     pass
+
+
+def validate_ipv4_address(value: str | None) -> str | None:
+    """Validate IPv4 address format."""
+    if value is None or value == "":
+        return value
+
+    # Allow special values for DHCP
+    if value.lower() in ["dhcp", "pppoe", "ppp", "static", "none"]:
+        return value
+
+    try:
+        ipaddress.IPv4Address(value)
+        return value
+    except ipaddress.AddressValueError:
+        msg = f"Invalid IPv4 address: {value}"
+        raise ValueError(msg)
+
+
+def validate_ipv6_address(value: str | None) -> str | None:
+    """Validate IPv6 address format."""
+    if value is None or value == "":
+        return value
+
+    # Allow special values for DHCPv6
+    if value.lower() in ["dhcp6", "6rd", "6to4", "static", "none", "track6"]:
+        return value
+
+    try:
+        ipaddress.IPv6Address(value)
+        return value
+    except ipaddress.AddressValueError:
+        msg = f"Invalid IPv6 address: {value}"
+        raise ValueError(msg)
+
+
+def validate_network_address(value: str | None) -> str | None:
+    """Validate network address (can be IP/CIDR, hostname, or special values)."""
+    if value is None or value == "":
+        return value
+
+    # Allow special network values
+    special_values = ["any", "self", "(self)", "wansubnet", "lansubnet"]
+    if value.lower() in special_values:
+        return value
+
+    # Check if it's a CIDR notation
+    if "/" in value:
+        try:
+            ipaddress.ip_network(value, strict=False)
+            return value
+        except ipaddress.AddressValueError:
+            pass
+
+    # Check if it's a valid IP address
+    try:
+        ipaddress.ip_address(value)
+        return value
+    except ipaddress.AddressValueError:
+        pass
+
+    # Allow hostnames (basic validation)
+    hostname_pattern = r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$"
+    if re.match(hostname_pattern, value):
+        return value
+
+    msg = f"Invalid network address: {value}"
+    raise ValueError(msg)
+
+
+def validate_subnet_mask(value: str | None) -> str | None:
+    """Validate subnet mask (CIDR notation or dotted decimal)."""
+    if value is None or value == "":
+        return value
+
+    # CIDR notation (0-32 for IPv4, 0-128 for IPv6)
+    if value.isdigit():
+        cidr = int(value)
+        if 0 <= cidr <= 128:  # Allow both IPv4 and IPv6 ranges
+            return value
+        msg = f"Invalid CIDR notation: {value}"
+        raise ValueError(msg)
+
+    # Dotted decimal notation for IPv4
+    try:
+        # Convert to IP address and check if it's a valid netmask
+        mask = ipaddress.IPv4Address(value)
+        # Check if it's a valid netmask by converting to int and checking binary pattern
+        mask_int = int(mask)
+        # Valid netmask should have consecutive 1s followed by consecutive 0s
+        mask_bin = bin(mask_int)[2:].zfill(32)
+        if "01" not in mask_bin:  # No 0 followed by 1
+            return value
+        msg = f"Invalid subnet mask: {value}"
+        raise ValueError(msg)
+    except ipaddress.AddressValueError:
+        msg = f"Invalid subnet mask format: {value}"
+        raise ValueError(msg)
 
 
 # System Configuration Models
@@ -43,32 +144,32 @@ class Group(BaseModel):
     description: str
     scope: str
     gid: int
-    member: Optional[Union[int, List[int]]] = None
-    priv: Optional[str] = None
+    member: int | list[int] | None = None
+    priv: str | None = None
 
 
 class User(BaseModel):
     name: str
-    descr: Optional[str] = None
+    descr: str | None = None
     scope: str  # TODO: Add enum
-    groupname: Optional[str] = None
+    groupname: str | None = None
     bcrypt_hash: str = Field(alias="bcrypt-hash")
     uid: int
-    priv: Optional[str] = None
-    expires: Optional[str] = None
-    dashboardcolumns: Optional[int] = None
-    authorizedkeys: Optional[str] = None
-    ipsecpsk: Optional[str] = None
+    priv: str | None = None
+    expires: str | None = None
+    dashboardcolumns: int | None = None
+    authorizedkeys: str | None = None
+    ipsecpsk: str | None = None
 
 
 class WebGui(BaseModel):
     protocol: str
-    loginautocomplete: Optional[str] = None
+    loginautocomplete: str | None = None
     ssl_certref: str = Field(alias="ssl-certref")
     port: int
     max_procs: int  # XML tag is max_procs, no hyphen
-    ocsp_staple: Optional[str] = Field(alias="ocsp-staple", default=None)
-    roaming: Optional[str] = None
+    ocsp_staple: str | None = Field(alias="ocsp-staple", default=None)
+    roaming: str | None = None
 
 
 class Bogons(BaseModel):
@@ -76,32 +177,32 @@ class Bogons(BaseModel):
 
 
 class Ssh(BaseModel):
-    enable: Optional[str] = None
-    sshdagentforwarding: Optional[str] = None
+    enable: str | None = None
+    sshdagentforwarding: str | None = None
 
 
 class System(BaseModel):
     optimization: str
     hostname: str
     domain: str
-    dnsallowoverride: Optional[str] = None
-    group: List[Group]
-    user: List[User]
+    dnsallowoverride: str | None = None
+    group: list[Group]
+    user: list[User]
     nextuid: int
     nextgid: int
     timeservers: str
     webgui: WebGui
-    disablenatreflection: Optional[str] = None
-    disablesegmentationoffloading: Optional[str] = None
-    disablelargereceiveoffloading: Optional[str] = None
-    ipv6allow: Optional[str] = None
-    maximumtableentries: Optional[int] = None
+    disablenatreflection: str | None = None
+    disablesegmentationoffloading: str | None = None
+    disablelargereceiveoffloading: str | None = None
+    ipv6allow: str | None = None
+    maximumtableentries: int | None = None
     powerd_ac_mode: str
     powerd_battery_mode: str
     powerd_normal_mode: str
     bogons: Bogons
-    hn_altq_enable: Optional[str] = Field(alias="hn_altq_enable", default=None)
-    already_run_config_upgrade: Optional[str] = None
+    hn_altq_enable: str | None = Field(alias="hn_altq_enable", default=None)
+    already_run_config_upgrade: str | None = None
     ssh: Ssh
     timezone: str
     serialspeed: int
@@ -128,35 +229,55 @@ class InterfaceWan(BaseModel):
         spoofmac (Optional[str]): MAC address to spoof on the interface.
     """
 
-    enable: Optional[str] = None
+    enable: str | None = None
     if_: str = Field(alias="if")
     descr: str
     ipaddr: str
-    dhcphostname: Optional[str] = None
-    alias_address: Optional[str] = Field(alias="alias-address", default=None)
-    alias_subnet: Optional[str] = Field(alias="alias-subnet", default=None)  # e.g. "32"
-    dhcprejectfrom: Optional[str] = None
-    adv_dhcp_pt_timeout: Optional[str] = None
-    adv_dhcp_pt_retry: Optional[str] = None
-    adv_dhcp_pt_select_timeout: Optional[str] = None
-    adv_dhcp_pt_reboot: Optional[str] = None
-    adv_dhcp_pt_backoff_cutoff: Optional[str] = None
-    adv_dhcp_pt_initial_interval: Optional[str] = None
-    adv_dhcp_pt_values: Optional[str] = None
-    adv_dhcp_send_options: Optional[str] = None
-    adv_dhcp_request_options: Optional[str] = None
-    adv_dhcp_required_options: Optional[str] = None
-    adv_dhcp_option_modifiers: Optional[str] = None
-    adv_dhcp_config_advanced: Optional[str] = None
-    adv_dhcp_config_file_override: Optional[str] = None
-    adv_dhcp_config_file_override_path: Optional[str] = None
+    dhcphostname: str | None = None
+    alias_address: str | None = Field(alias="alias-address", default=None)
+    alias_subnet: str | None = Field(alias="alias-subnet", default=None)  # e.g. "32"
+    dhcprejectfrom: str | None = None
+    adv_dhcp_pt_timeout: str | None = None
+    adv_dhcp_pt_retry: str | None = None
+    adv_dhcp_pt_select_timeout: str | None = None
+    adv_dhcp_pt_reboot: str | None = None
+    adv_dhcp_pt_backoff_cutoff: str | None = None
+    adv_dhcp_pt_initial_interval: str | None = None
+    adv_dhcp_pt_values: str | None = None
+    adv_dhcp_send_options: str | None = None
+    adv_dhcp_request_options: str | None = None
+    adv_dhcp_required_options: str | None = None
+    adv_dhcp_option_modifiers: str | None = None
+    adv_dhcp_config_advanced: str | None = None
+    adv_dhcp_config_file_override: str | None = None
+    adv_dhcp_config_file_override_path: str | None = None
     ipaddrv6: str
-    dhcp6_duid: Optional[str] = Field(alias="dhcp6-duid", default=None)
+    dhcp6_duid: str | None = Field(alias="dhcp6-duid", default=None)
     dhcp6_ia_pd_len: int = Field(alias="dhcp6-ia-pd-len")
-    adv_dhcp6_prefix_selected_interface: Optional[str] = Field(
-        alias="adv_dhcp6_prefix_selected_interface", default=None
+    adv_dhcp6_prefix_selected_interface: str | None = Field(
+        alias="adv_dhcp6_prefix_selected_interface", default=None,
     )
-    spoofmac: Optional[str] = None
+    spoofmac: str | None = None
+
+    @field_validator("ipaddr")
+    @classmethod
+    def validate_ipaddr(cls, v):
+        return validate_ipv4_address(v)
+
+    @field_validator("alias_address")
+    @classmethod
+    def validate_alias_address(cls, v):
+        return validate_ipv4_address(v)
+
+    @field_validator("alias_subnet")
+    @classmethod
+    def validate_alias_subnet(cls, v):
+        return validate_subnet_mask(v)
+
+    @field_validator("ipaddrv6")
+    @classmethod
+    def validate_ipaddrv6(cls, v):
+        return validate_ipv6_address(v)
 
 
 class InterfaceLan(BaseModel):
@@ -178,19 +299,49 @@ class InterfaceLan(BaseModel):
         gatewayv6 (Optional[str]): The IPv6 gateway for the interface.
     """
 
-    enable: Optional[str] = None
+    enable: str | None = None
     if_: str = Field(alias="if")
     # descr: Optional[str] = None # Not present in LAN example, but typical
     ipaddr: str
     subnet: str  # e.g. "24"
-    ipaddrv6: Optional[str] = None
-    subnetv6: Optional[str] = None
-    media: Optional[str] = None
-    mediaopt: Optional[str] = None
-    track6_interface: Optional[str] = Field(alias="track6-interface", default=None)
-    track6_prefix_id: Optional[int] = Field(alias="track6-prefix-id", default=None)
-    gateway: Optional[str] = None
-    gatewayv6: Optional[str] = None
+    ipaddrv6: str | None = None
+    subnetv6: str | None = None
+    media: str | None = None
+    mediaopt: str | None = None
+    track6_interface: str | None = Field(alias="track6-interface", default=None)
+    track6_prefix_id: int | None = Field(alias="track6-prefix-id", default=None)
+    gateway: str | None = None
+    gatewayv6: str | None = None
+
+    @field_validator("ipaddr")
+    @classmethod
+    def validate_ipaddr(cls, v):
+        return validate_ipv4_address(v)
+
+    @field_validator("subnet")
+    @classmethod
+    def validate_subnet(cls, v):
+        return validate_subnet_mask(v)
+
+    @field_validator("ipaddrv6")
+    @classmethod
+    def validate_ipaddrv6(cls, v):
+        return validate_ipv6_address(v)
+
+    @field_validator("subnetv6")
+    @classmethod
+    def validate_subnetv6(cls, v):
+        return validate_subnet_mask(v)
+
+    @field_validator("gateway")
+    @classmethod
+    def validate_gateway(cls, v):
+        return validate_ipv4_address(v)
+
+    @field_validator("gatewayv6")
+    @classmethod
+    def validate_gatewayv6(cls, v):
+        return validate_ipv6_address(v)
 
 
 class Interfaces(BaseModel):
@@ -203,10 +354,39 @@ class Range(BaseModel):
     from_: str = Field(alias="from")
     to: str
 
+    @field_validator("from_")
+    @classmethod
+    def validate_from(cls, v):
+        if ":" in v:
+            return validate_ipv6_address(v)
+        return validate_ipv4_address(v)
+
+    @field_validator("to")
+    @classmethod
+    def validate_to(cls, v):
+        if ":" in v:
+            return validate_ipv6_address(v)
+        return validate_ipv4_address(v)
+
 
 class DhcpdLan(BaseModel):
     range: Range
-    enable: Optional[str] = None
+    defaultleasetime: int | None = None
+    maxleasetime: int | None = None
+    enable: str | None = None
+    netmask: str | None = None
+    gateway: str | None = None
+    domain: str | None = None
+
+    @field_validator("netmask")
+    @classmethod
+    def validate_netmask(cls, v):
+        return validate_subnet_mask(v)
+
+    @field_validator("gateway")
+    @classmethod
+    def validate_gateway(cls, v):
+        return validate_ipv4_address(v)
 
 
 class Dhcpd(BaseModel):
@@ -232,23 +412,28 @@ class Snmpd(BaseModel):
     such as interface status, traffic counters, and system health.
     """
 
-    syslocation: Optional[str] = None
-    syscontact: Optional[str] = None
+    syslocation: str | None = None
+    syscontact: str | None = None
     rocommunity: str
 
 
 # Diagnostics Models
 class IPv6Nat(BaseModel):
-    ipaddr: Optional[str] = None
+    ipaddr: str | None = None
+
+    @field_validator("ipaddr")
+    @classmethod
+    def validate_ipaddr(cls, v):
+        return validate_ipv6_address(v)
 
 
 class Diag(BaseModel):
-    ipv6nat: Optional[IPv6Nat]
+    ipv6nat: IPv6Nat | None
 
 
 # Syslog Model
 class Syslog(BaseModel):
-    filterdescriptions: Optional[int] = None
+    filterdescriptions: int | None = None
 
 
 # NAT Models
@@ -262,13 +447,25 @@ class Nat(BaseModel):
 
 # Filter Rule Models
 class FilterRuleSource(BaseModel):
-    any: Optional[str] = None  # Presence of <any></any> often parses to None or ""
-    network: Optional[str] = None
+    any: str | None = None  # Presence of <any></any> often parses to None or ""
+    network: str | None = None
+
+    @field_validator("network")
+    @classmethod
+    def validate_network(cls, v):
+        if v == "lan" or v == "wan" or v == "any":
+            return v
+        return validate_network_address(v)
 
 
 class FilterRuleDestination(BaseModel):
-    any: Optional[str] = None
-    network: Optional[str] = None
+    any: str | None = None
+    network: str | None = None
+
+    @field_validator("network")
+    @classmethod
+    def validate_network(cls, v):
+        return validate_network_address(v)
 
 
 class FilterRuleTimestamp(BaseModel):
@@ -277,26 +474,26 @@ class FilterRuleTimestamp(BaseModel):
 
 
 class FilterRule(BaseModel):
-    id: Optional[str] = None
+    id: str | None = None
     tracker: str
     type: str
     interface: str
     ipprotocol: str
-    tag: Optional[str] = None
-    tagged: Optional[str] = None
-    max: Optional[str] = None
-    max_src_nodes: Optional[str] = Field(alias="max-src-nodes", default=None)
-    max_src_conn: Optional[str] = Field(alias="max-src-conn", default=None)
-    max_src_states: Optional[str] = Field(alias="max-src-states", default=None)
-    statetimeout: Optional[str] = None
-    statetype: Optional[str] = None
-    os: Optional[str] = None
-    protocol: Optional[str] = None
+    tag: str | None = None
+    tagged: str | None = None
+    max: str | None = None
+    max_src_nodes: str | None = Field(alias="max-src-nodes", default=None)
+    max_src_conn: str | None = Field(alias="max-src-conn", default=None)
+    max_src_states: str | None = Field(alias="max-src-states", default=None)
+    statetimeout: str | None = None
+    statetype: str | None = None
+    os: str | None = None
+    protocol: str | None = None
     source: FilterRuleSource
     destination: FilterRuleDestination
     descr: str
-    updated: Optional[FilterRuleTimestamp] = None
-    created: Optional[FilterRuleTimestamp] = None
+    updated: FilterRuleTimestamp | None = None
+    created: FilterRuleTimestamp | None = None
 
 
 class FilterSeparatorDetail(BaseModel):  # Renamed from FilterSeparatorWan
@@ -305,18 +502,18 @@ class FilterSeparatorDetail(BaseModel):  # Renamed from FilterSeparatorWan
 
 
 class FilterSeparator(BaseModel):
-    wan: Optional[Union[str, FilterSeparatorDetail]] = None  # Handles <wan></wan>
+    wan: str | FilterSeparatorDetail | None = None  # Handles <wan></wan>
 
 
 class Filter(BaseModel):
-    rule: List[FilterRule]
-    separator: Optional[FilterSeparator] = None
+    rule: list[FilterRule]
+    separator: FilterSeparator | None = None
 
 
 # IPsec Models
 class IPSecClient(BaseModel):
-    enable: Optional[str] = None
-    radiusaccounting: Optional[str] = None
+    enable: str | None = None
+    radiusaccounting: str | None = None
     user_source: str
 
 
@@ -340,32 +537,37 @@ class IPSecPhase1(BaseModel):
     ikeid: int
     iketype: str
     interface: str
-    remote_gateway: Optional[str] = Field(alias="remote-gateway", default=None)
+    remote_gateway: str | None = Field(alias="remote-gateway", default=None)
     protocol: str
     myid_type: str
-    myid_data: Optional[str] = None
+    myid_data: str | None = None
     peerid_type: str
-    peerid_data: Optional[str] = None
+    peerid_data: str | None = None
     encryption: EncryptionConfig
     lifetime: int
-    rekey_time: Optional[str] = None
-    reauth_time: Optional[str] = None
-    rand_time: Optional[str] = None
-    pre_shared_key: Optional[str] = Field(alias="pre-shared-key", default=None)
-    private_key: Optional[str] = Field(alias="private-key", default=None)
-    certref: Optional[str] = None
-    pkcs11certref: Optional[str] = None
-    pkcs11pin: Optional[str] = None
-    caref: Optional[str] = None
+    rekey_time: str | None = None
+    reauth_time: str | None = None
+    rand_time: str | None = None
+    pre_shared_key: str | None = Field(alias="pre-shared-key", default=None)
+    private_key: str | None = Field(alias="private-key", default=None)
+    certref: str | None = None
+    pkcs11certref: str | None = None
+    pkcs11pin: str | None = None
+    caref: str | None = None
     authentication_method: str
     descr: str
     nat_traversal: str
     mobike: str
-    mobile: Optional[str] = None
-    startaction: Optional[str] = None
-    closeaction: Optional[str] = None
-    dpd_delay: Optional[int] = Field(default=None)  # XML values are "10", "5"
-    dpd_maxfail: Optional[int] = Field(default=None)
+    mobile: str | None = None
+    startaction: str | None = None
+    closeaction: str | None = None
+    dpd_delay: int | None = Field(default=None)  # XML values are "10", "5"
+    dpd_maxfail: int | None = Field(default=None)
+
+    @field_validator("remote_gateway")
+    @classmethod
+    def validate_remote_gateway(cls, v):
+        return validate_ipv4_address(v)
 
 
 class IPSecMobileKey(BaseModel):
@@ -373,36 +575,46 @@ class IPSecMobileKey(BaseModel):
     type: str
     pre_shared_key: str = Field(alias="pre-shared-key")
     ident_type: str
-    pool_address: Optional[str] = None
+    pool_address: str | None = None
     pool_netbits: int
-    dns_address: Optional[str] = None
+    dns_address: str | None = None
+
+    @field_validator("pool_address")
+    @classmethod
+    def validate_pool_address(cls, v):
+        return validate_ipv4_address(v)
+
+    @field_validator("dns_address")
+    @classmethod
+    def validate_dns_address(cls, v):
+        return validate_ipv4_address(v)
 
 
 class Ipsec(BaseModel):
     client: IPSecClient
-    phase1: List[IPSecPhase1]
-    mobilekey: Union[IPSecMobileKey, List[IPSecMobileKey]]
+    phase1: list[IPSecPhase1]
+    mobilekey: IPSecMobileKey | list[IPSecMobileKey]
 
 
 # Cron Job Models
 class CronItem(BaseModel):
     minute: str
-    hour: Optional[str] = None
-    mday: Optional[str] = None
-    month: Optional[str] = None
-    wday: Optional[str] = None
+    hour: str | None = None
+    mday: str | None = None
+    month: str | None = None
+    wday: str | None = None
     who: str
     command: str
 
 
 class Cron(BaseModel):
-    item: List[CronItem]
+    item: list[CronItem]
 
 
 class Rrd(BaseModel):
     """RRDTool Model."""
 
-    enable: Optional[str] = None
+    enable: str | None = None
 
 
 class Widgets(BaseModel):
@@ -415,14 +627,14 @@ class Widgets(BaseModel):
 class Unbound(BaseModel):
     """Unbound DNS Resolver Model."""
 
-    enable: Optional[str] = None
-    dnssec: Optional[str] = None
-    active_interface: Optional[str] = None
-    outgoing_interface: Optional[str] = None
-    custom_options: Optional[str] = None
-    hideidentity: Optional[str] = None
-    hideversion: Optional[str] = None
-    dnssecstripped: Optional[str] = None
+    enable: str | None = None
+    dnssec: str | None = None
+    active_interface: str | None = None
+    outgoing_interface: str | None = None
+    custom_options: str | None = None
+    hideidentity: str | None = None
+    hideversion: str | None = None
+    dnssecstripped: str | None = None
 
 
 class Revision(BaseModel):
@@ -439,7 +651,7 @@ class NtpdGps(BaseModel):
 
 
 class Ntpd(BaseModel):
-    gps: Optional[Union[str, NtpdGps]] = None
+    gps: str | NtpdGps | None = None
 
 
 class Cert(BaseModel):
@@ -475,13 +687,18 @@ class AccessListItem(BaseModel):
     type: str
     weight: int
     network: str
-    users: Optional[str] = None
-    sched: Optional[str] = None
+    users: str | None = None
+    sched: str | None = None
     descr: str
+
+    @field_validator("network")
+    @classmethod
+    def validate_network(cls, v):
+        return validate_network_address(v)
 
 
 class AccessList(BaseModel):
-    item: List[AccessListItem]
+    item: list[AccessListItem]
 
 
 class PackageConf(BaseModel):
@@ -492,19 +709,19 @@ class PackageConf(BaseModel):
     log_successful_auth: str
     hateoas: str
     expose_sensitive_fields: str
-    override_sensitive_fields: Optional[str] = None
+    override_sensitive_fields: str | None = None
     allow_pre_releases: str
-    allowed_interfaces: Optional[str] = None
+    allowed_interfaces: str | None = None
     represent_interfaces_as: str
     auth_methods: str
     ha_sync: str
-    ha_sync_hosts: Optional[str] = None
-    ha_sync_username: Optional[str] = None
-    ha_sync_password: Optional[str] = None
-    ha_sync_validate_certs: Optional[str] = None
-    server_key: Optional[str] = None
+    ha_sync_hosts: str | None = None
+    ha_sync_username: str | None = None
+    ha_sync_password: str | None = None
+    ha_sync_validate_certs: str | None = None
+    server_key: str | None = None
     jwt_exp: int
-    keys: Optional[str] = None
+    keys: str | None = None
     access_list: AccessList
 
 
@@ -513,7 +730,7 @@ class PluginItem(BaseModel):
 
 
 class Plugins(BaseModel):
-    item: List[PluginItem]
+    item: list[PluginItem]
 
 
 class InstalledPackage(BaseModel):
@@ -543,8 +760,8 @@ class InstalledPackages(BaseModel):
     #     InstalledPackage
     # ]
     # menu: List[Menu]
-    package: Optional[Any]
-    menu: Optional[Any]
+    package: Any | None
+    menu: Any | None
 
 
 class SSHKeyFile(BaseModel):
@@ -553,7 +770,7 @@ class SSHKeyFile(BaseModel):
 
 
 class SshData(BaseModel):
-    sshkeyfile: List[SSHKeyFile]
+    sshkeyfile: list[SSHKeyFile]
 
 
 class PfSense(BaseModel):
@@ -602,10 +819,10 @@ class PfSense(BaseModel):
     """
 
     version: str
-    lastchange: Optional[str] = None
+    lastchange: str | None = None
     system: System
     interfaces: Interfaces
-    staticroutes: Optional[Union[str, EmptyContent]] = None
+    staticroutes: str | EmptyContent | None = None
     dhcpd: Dhcpd
     dhcpdv6: Dhcpdv6
     snmpd: Snmpd
@@ -613,26 +830,26 @@ class PfSense(BaseModel):
     syslog: Syslog
     nat: Nat
     filter: Filter
-    shaper: Optional[Union[str, EmptyContent]] = None
+    shaper: str | EmptyContent | None = None
     ipsec: Ipsec
-    aliases: Optional[Union[str, EmptyContent]] = None
-    proxyarp: Optional[Union[str, EmptyContent]] = None
+    aliases: str | EmptyContent | None = None
+    proxyarp: str | EmptyContent | None = None
     cron: Cron
-    wol: Optional[Union[str, EmptyContent]] = None
+    wol: str | EmptyContent | None = None
     rrd: Rrd
     widgets: Widgets
-    openvpn: Optional[Union[str, EmptyContent]] = None
-    dnshaper: Optional[Union[str, EmptyContent]] = None
+    openvpn: str | EmptyContent | None = None
+    dnshaper: str | EmptyContent | None = None
     unbound: Unbound
-    vlans: Optional[Union[str, EmptyContent]] = None
-    qinqs: Optional[Union[str, EmptyContent]] = None
+    vlans: str | EmptyContent | None = None
+    qinqs: str | EmptyContent | None = None
     revision: Revision
-    gateways: Optional[Union[str, EmptyContent]] = None
-    captiveportal: Optional[Union[str, EmptyContent]] = None
-    dnsmasq: Optional[Union[str, EmptyContent]] = None
+    gateways: str | EmptyContent | None = None
+    captiveportal: str | EmptyContent | None = None
+    dnsmasq: str | EmptyContent | None = None
     ntpd: Ntpd
-    cert: Cert  # Single main certificate for GUI, etc.
+    cert: Cert | None  # Single main certificate for GUI, etc.
     wizardtemp: WizardTemp
-    ppps: Optional[Union[str, EmptyContent]] = None
+    ppps: str | EmptyContent | None = None
     installedpackages: InstalledPackages
-    sshdata: Optional[SshData] = None
+    sshdata: SshData | None = None

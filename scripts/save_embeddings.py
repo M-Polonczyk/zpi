@@ -14,7 +14,7 @@ def wczytaj_pdf(sciezka_pdf):
 
 
 # Wczytaj plik PDF (podaj swoją ścieżkę)
-sciezka_pdf = Path("data/pfsense-documentation.pdf")
+sciezka_pdf = Path("backend/data/pfsense-documentation.pdf")
 dokumentacja = wczytaj_pdf(sciezka_pdf)
 
 
@@ -31,6 +31,6 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 embeddingi = model.encode(fragmenty)
 
 # 4. Zapis do pliku
-np.savez("data/file_embeddings.npz", fragmenty=fragmenty, wektory=embeddingi)
+np.savez("backend/data/file_embeddings.npz", fragmenty=fragmenty, wektory=embeddingi)
 
 print("✅ Embeddingi zapisane do file_embeddings.npz")

@@ -1,0 +1,54 @@
+services:
+  # ollama:
+  #   image: ollama/ollama
+  #   container_name: ollama
+  #   ports:
+  #     - 11434:11434
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #         - driver: nvidia
+  #           device_ids: ['0', '3']
+  #           capabilities: [gpu]
+
+  backend:
+    build: ./backend
+    container_name: backend
+    ports:
+      - 8000:8000
+    depends_on:
+      - postgres
+      # - ollama
+    environment:
+      - DATABASE_URL=postgres://postgres:password@db:5432/somedb
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  frontend:
+    restart: always
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=${VITE_API_URL?Variable not set}
+
+volumes:
+  ollama_data:
+  postgres_data:
