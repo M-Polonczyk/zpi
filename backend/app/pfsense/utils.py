@@ -4,7 +4,7 @@ import tempfile
 import paramiko
 import xmltodict
 
-from .config.schema import PfSense
+from .config.schema import PfSenseConfig
 from .config.settings import (
     BACKUP_CONFIG_DIR,
     CONFIG_DIR,
@@ -19,7 +19,7 @@ class PfSenseError(Exception):
 
 def fetch_pfsense_config(
     key_filepath: str | None = None,
-) -> PfSense:
+) -> PfSenseConfig:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -45,11 +45,11 @@ def fetch_pfsense_config(
     # Convert XML to dict
     config_dict = xmltodict.parse(config_xml, force_list=("user", "group", "staticmap"))
     # Parse with Pydantic
-    return PfSense(**config_dict["pfsense"])
+    return PfSenseConfig(**config_dict["pfsense"])
 
 
 
-def push_pfsense_config(config: PfSense) -> int:
+def push_pfsense_config(config: PfSenseConfig) -> int:
     """Push a new configuration to the pfSense device.
 
     Args:
@@ -93,7 +93,7 @@ def push_pfsense_config(config: PfSense) -> int:
     return 1
 
 
-def load_pfsense_config_from_file(file_path: str) -> PfSense:
+def load_pfsense_config_from_file(file_path: str) -> PfSenseConfig:
     """Load a pfSense configuration from a file.
 
     Args:
@@ -109,10 +109,10 @@ def load_pfsense_config_from_file(file_path: str) -> PfSense:
     config_dict = xmltodict.parse(config_xml, force_list=("user", "group", "staticmap"))
 
     # Parse with Pydantic
-    return PfSense(**config_dict["pfsense"])
+    return PfSenseConfig(**config_dict["pfsense"])
 
 
-def _validate_dhcp_range_consistency(config: PfSense) -> bool:
+def _validate_dhcp_range_consistency(config: PfSenseConfig) -> bool:
     """Validate DHCP range consistency."""
     if not (config.dhcpd and config.dhcpd.lan and config.dhcpd.lan.range):
         return True
@@ -135,7 +135,7 @@ def _validate_dhcp_range_consistency(config: PfSense) -> bool:
     return True
 
 
-def _validate_dhcp_subnet_consistency(config: PfSense) -> bool:
+def _validate_dhcp_subnet_consistency(config: PfSenseConfig) -> bool:
     """Validate that DHCP range is within the LAN subnet."""
     try:
         import ipaddress
@@ -167,7 +167,7 @@ def _validate_dhcp_subnet_consistency(config: PfSense) -> bool:
     return True
 
 
-def validate_pfsense_config(config: PfSense) -> bool:
+def validate_pfsense_config(config: PfSenseConfig) -> bool:
     """Validate the pfSense configuration.
 
     Args:

@@ -4,7 +4,7 @@ import uuid
 from typing import Any
 
 from app.rag.generate_config import wygeneruj_zmiane_konfiguracji
-from app.pfsense.config import PfSense
+from app.pfsense.config import PfSenseConfig
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import SessionDep
@@ -13,21 +13,21 @@ from app.pfsense.utils import (
     fetch_pfsense_config,
     push_pfsense_config,
     validate_pfsense_config,
-    load_pfsense_config_from_file
+    load_pfsense_config_from_file,
 )
 
 router = APIRouter(prefix="/pfsense", tags=["pfsense"])
 
 
 @router.get("/")
-def read_config(session: SessionDep) -> PfSense:
+def read_config(session: SessionDep) -> PfSenseConfig:
     """
     Retrieve configuration from Pfsense.
     """
     return fetch_pfsense_config()
 
 
-@router.post("/", response_model=PfSense)
+@router.post("/", response_model=PfSenseConfig)
 async def push_config(
     *,
     session: SessionDep,
@@ -39,18 +39,13 @@ async def push_config(
     """
     logging.info("Received prompt: %s", prompt.text)
     # config = fetch_pfsense_config()
-    config = load_pfsense_config_from_file(str(Path("data/example_config.xml").absolute()))
+    config = load_pfsense_config_from_file(
+        str(Path("data/example_config.xml").absolute())
+    )
     if not config:
         logging.error("Configuration not found")
         raise HTTPException(status_code=404, detail="Configuration not found")
 
-    # Remove sensitive data before sending to the model
-    sshdata = config.sshdata.model_copy() if config.sshdata else None
-    cert = config.cert.model_copy() if config.cert else None
-    config.sshdata = None
-    config.cert = None
-
-    # Generate configuration change based on the prompt
     updated_config = wygeneruj_zmiane_konfiguracji(prompt.text, config)
     if not updated_config:
         logging.error("Failed to generate configuration change")
@@ -58,23 +53,20 @@ async def push_config(
             status_code=400,
             detail="Failed to generate configuration change",
         )
-
-    # Restore sensitive data after generating the config
-    updated_config.sshdata = sshdata
-    updated_config.cert = cert
+    config.update_from_output(updated_config)
 
     if not dry_run:
-        push_pfsense_config(config=updated_config)
+        push_pfsense_config(config=config)
 
-    return updated_config
+    return config
 
 
-@router.post("/config", response_model=PfSense)
+@router.post("/config", response_model=PfSenseConfig)
 def update_config(
     *,
     session: SessionDep,
-    config: PfSense,
-) -> PfSense:
+    config: PfSenseConfig,
+) -> PfSenseConfig:
     """
     Update an config based on the provided prompt.
     """

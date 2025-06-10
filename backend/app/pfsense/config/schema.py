@@ -786,51 +786,62 @@ class SSHKeyFile(BaseModel):
 class SshData(BaseModel):
     sshkeyfile: list[SSHKeyFile]
 
-
-class PfSenseOutput(BaseModel):
+class BasePfSenseModel(BaseModel):
     """
-    Represents the output of a pfSense configuration.
+    Base model for pfSense configuration schema.
 
-    This model is used to encapsulate the output data structure of a pfSense configuration,
-    including the version, last change timestamp, and various configuration sections.
+    This model serves as a base class for all pfSense configuration models,
+    providing common functionality and validation.
     """
-    # Commented out because:
-    # google.genai.errors.ClientError: 400 INVALID_ARGUMENT. 
-    # {'error': {'code': 400, 'message': 'The specified schema produces a constraint that has too many states for serving.
-    # Typical causes of this error are schemas with lots of text (for example, very long property or enum names),
-    # schemas with long array length limits (especially when nested), or schemas using complex value matchers 
-    # (for example, integers or numbers with minimum/maximum bounds or strings with complex formats like date-time)', 'status': 'INVALID_ARGUMENT'}}
-    # system: System
-    # interfaces: Interfaces
-    staticroutes: str = ""
     dhcpd: Dhcpd
     dhcpdv6: Dhcpdv6
     snmpd: Snmpd
     diag: Diag
-    syslog: Syslog
     nat: Nat
     filter: Filter
-    shaper: str = ""
-    ipsec: Ipsec
-    aliases: str = ""
-    proxyarp: str = ""
+    unbound: Unbound
+    ntpd: Ntpd
     cron: Cron
-    wol: str = ""
     rrd: Rrd
     widgets: Widgets
+    ipsec: Ipsec
+
+    class Config:
+        validate_by_name = True  # Allow field names to be used as aliases
+        use_enum_values = True  # Use enum values instead of enum instances
+
+class PfSenseOutput(BasePfSenseModel):
+    """
+    Represents the output of a pfSense configuration for API responses.
+
+    This model is used to encapsulate the output data structure of a pfSense configuration,
+    including the version, last change timestamp, and various configuration sections.
+    """
+
+    # Commented out because:
+    # google.genai.errors.ClientError: 400 INVALID_ARGUMENT.
+    # {'error': {'code': 400, 'message': 'The specified schema produces a constraint that has too many states for serving.
+    # Typical causes of this error are schemas with lots of text (for example, very long property or enum names),
+    # schemas with long array length limits (especially when nested), or schemas using complex value matchers
+    # (for example, integers or numbers with minimum/maximum bounds or strings with complex formats like date-time)', 'status': 'INVALID_ARGUMENT'}}
+    # system: System
+    # interfaces: Interfaces
+    staticroutes: str = ""
+    shaper: str = ""
+    aliases: str = ""
+    proxyarp: str = ""
+    wol: str = ""
     openvpn: str = ""
     dnshaper: str = ""
-    unbound: Unbound
     vlans: str = ""
     qinqs: str = ""
     gateways: str = ""
     captiveportal: str = ""
     dnsmasq: str = ""
-    ntpd: Ntpd
     ppps: str = ""
 
 
-class PfSenseConfig(PfSenseOutput):
+class PfSenseConfig(BasePfSenseModel):
     """
     PfSense configuration schema model.
 
@@ -880,33 +891,82 @@ class PfSenseConfig(PfSenseOutput):
     system: System
     interfaces: Interfaces
     staticroutes: str | EmptyContent | None = None
-    dhcpd: Dhcpd
-    dhcpdv6: Dhcpdv6
-    snmpd: Snmpd
-    diag: Diag
     syslog: Syslog
-    nat: Nat
-    filter: Filter
     shaper: str | EmptyContent | None = None
-    ipsec: Ipsec
     aliases: str | EmptyContent | None = None
     proxyarp: str | EmptyContent | None = None
-    cron: Cron
     wol: str | EmptyContent | None = None
-    rrd: Rrd
-    widgets: Widgets
     openvpn: str | EmptyContent | None = None
     dnshaper: str | EmptyContent | None = None
-    unbound: Unbound
     vlans: str | EmptyContent | None = None
     qinqs: str | EmptyContent | None = None
     revision: Revision
     gateways: str | EmptyContent | None = None
     captiveportal: str | EmptyContent | None = None
     dnsmasq: str | EmptyContent | None = None
-    ntpd: Ntpd
-    cert: Cert | None  # Single main certificate for GUI, etc.
+    cert: Cert | None = None  # Single main certificate for GUI, etc.
     wizardtemp: WizardTemp
     ppps: str | EmptyContent | None = None
     installedpackages: InstalledPackages
     sshdata: SshData | None = None
+
+    def to_output(self) -> PfSenseOutput:
+        """Convert PfSenseConfig to PfSenseOutput."""
+        return PfSenseOutput(
+            staticroutes="" if self.staticroutes is None else str(self.staticroutes),
+            dhcpd=self.dhcpd,
+            dhcpdv6=self.dhcpdv6,
+            snmpd=self.snmpd,
+            diag=self.diag,
+            nat=self.nat,
+            filter=self.filter,
+            shaper="" if self.shaper is None else str(self.shaper),
+            ipsec=self.ipsec,
+            aliases="" if self.aliases is None else str(self.aliases),
+            proxyarp="" if self.proxyarp is None else str(self.proxyarp),
+            cron=self.cron,
+            wol="" if self.wol is None else str(self.wol),
+            rrd=self.rrd,
+            widgets=self.widgets,
+            openvpn="" if self.openvpn is None else str(self.openvpn),
+            dnshaper="" if self.dnshaper is None else str(self.dnshaper),
+            unbound=self.unbound,
+            vlans="" if self.vlans is None else str(self.vlans),
+            qinqs="" if self.qinqs is None else str(self.qinqs),
+            gateways="" if self.gateways is None else str(self.gateways),
+            captiveportal="" if self.captiveportal is None else str(self.captiveportal),
+            dnsmasq="" if self.dnsmasq is None else str(self.dnsmasq),
+            ntpd=self.ntpd,
+            ppps="" if self.ppps is None else str(self.ppps),
+        )
+    
+    def update_from_output(self, output: PfSenseOutput):
+        """Update this PfSenseConfig from a PfSenseOutput."""
+        self.staticroutes = output.staticroutes
+        self.dhcpd = output.dhcpd
+        self.dhcpdv6 = output.dhcpdv6
+        self.snmpd = output.snmpd
+        self.diag = output.diag
+        self.nat = output.nat
+        self.filter = output.filter
+        self.shaper = output.shaper
+        self.ipsec = output.ipsec
+        self.aliases = output.aliases
+        self.proxyarp = output.proxyarp
+        self.cron = output.cron
+        self.wol = output.wol
+        self.rrd = output.rrd
+        self.widgets = output.widgets
+        self.openvpn = output.openvpn
+        self.dnshaper = output.dnshaper
+        self.unbound = output.unbound
+        self.vlans = output.vlans
+        self.qinqs = output.qinqs
+        self.gateways = output.gateways
+        self.captiveportal = output.captiveportal
+        self.dnsmasq = output.dnsmasq
+        self.ntpd = output.ntpd
+
+
+# Backward compatibility alias
+# PfSense = PfSenseConfig
