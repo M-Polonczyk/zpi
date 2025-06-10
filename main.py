@@ -12,12 +12,6 @@ def change_dhcp_range_example():
     config = load_pfsense_config_from_file("example_config.xml")
     print(f"{config.dhcpd.lan.range=}")
 
-    # Remove crt and xml data before sending prompt
-    sshdata = config.sshdata.model_copy() if config.sshdata else None
-    cert = config.cert.model_copy() if config.cert else None
-    config.sshdata = None
-    config.cert = None
-
     opis = "Change the DHCP range on the LAN interface to maximum of 60 IPs"
     updated_config = wygeneruj_zmiane_konfiguracji(opis, config)
     if not updated_config:
@@ -28,9 +22,7 @@ def change_dhcp_range_example():
     print(updated_config)
     print(f"{updated_config.dhcpd.lan.range=}")
 
-    # Restore sshdata and cert after generating the config
-    updated_config.sshdata = sshdata
-    updated_config.cert = cert
+    config.update_from_output(updated_config)
 
 
 def main():
