@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -67,15 +68,12 @@ def generate_content_from_model(prompt) -> PfSenseOutput | None:
         ],
         config=config,
     )
-    print(f"{response=}")
     if isinstance(response.parsed, PfSenseOutput):
-        print(f"{response.parsed=}")
+        logging.info("Response: %s", response.parsed)
         return response.parsed
     if isinstance(response.parsed, BaseModel):
-        print(f"{response=}")
         return PfSenseOutput(**response.parsed.model_dump())
     if isinstance(response.text, str):
-        print(f"{response.text=}")
         return PfSenseOutput(**json.loads(response.text))
     return None
 

@@ -32,11 +32,9 @@ async def push_config(
     *,
     session: SessionDep,
     prompt: Prompt,
-    dry_run: bool = False,
+    commit: bool = True,
 ) -> Any:
-    """
-    Push configuration to Pfsense based on the provided prompt.
-    """
+    """Push configuration to Pfsense based on the provided prompt."""
     logging.info("Received prompt: %s", prompt.text)
     # config = fetch_pfsense_config()
     config = load_pfsense_config_from_file(
@@ -55,7 +53,7 @@ async def push_config(
         )
     config.update_from_output(updated_config)
 
-    if not dry_run:
+    if commit:
         push_pfsense_config(config=config)
 
     return config
@@ -66,6 +64,7 @@ def update_config(
     *,
     session: SessionDep,
     config: PfSenseConfig,
+    dry_run: bool = False,
 ) -> PfSenseConfig:
     """
     Update an config based on the provided prompt.
