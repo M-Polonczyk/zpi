@@ -1,2 +1,2 @@
-from .schema import PfSense
+from .schema import PfSenseConfig, PfSenseOutput
 from .settings import *

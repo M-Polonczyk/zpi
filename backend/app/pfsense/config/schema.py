@@ -38,13 +38,10 @@ from pydantic import BaseModel, Field, field_validator
 
 class EmptyContent(BaseModel):
     """Empty content placeholder with proper type definition for API compatibility."""
-    schema_compat_dummy_field: Optional[str] = Field(
-        default=None, 
-        description="Internal dummy field for API schema compatibility. Should not be set or relied upon.",
-    )
+
     class Config:
         extra = "ignore"
-    
+
     def model_dump(self, **kwargs):
         return {}
 
@@ -72,7 +69,17 @@ def validate_ipv6_address(value: str | None) -> str | None:
         return value
 
     # Allow special values for DHCPv6
-    if value.lower() in ["any", "lan", "wan", "dhcp6", "6rd", "6to4", "static", "none", "track6"]:
+    if value.lower() in [
+        "any",
+        "lan",
+        "wan",
+        "dhcp6",
+        "6rd",
+        "6to4",
+        "static",
+        "none",
+        "track6",
+    ]:
         return value
 
     try:
@@ -264,7 +271,8 @@ class InterfaceWan(BaseModel):
     dhcp6_duid: str | None = Field(alias="dhcp6-duid", default=None)
     dhcp6_ia_pd_len: int = Field(alias="dhcp6-ia-pd-len")
     adv_dhcp6_prefix_selected_interface: str | None = Field(
-        alias="adv_dhcp6_prefix_selected_interface", default=None,
+        alias="adv_dhcp6_prefix_selected_interface",
+        default=None,
     )
     spoofmac: str | None = None
 
@@ -779,7 +787,50 @@ class SshData(BaseModel):
     sshkeyfile: list[SSHKeyFile]
 
 
-class PfSense(BaseModel):
+class PfSenseOutput(BaseModel):
+    """
+    Represents the output of a pfSense configuration.
+
+    This model is used to encapsulate the output data structure of a pfSense configuration,
+    including the version, last change timestamp, and various configuration sections.
+    """
+    # Commented out because:
+    # google.genai.errors.ClientError: 400 INVALID_ARGUMENT. 
+    # {'error': {'code': 400, 'message': 'The specified schema produces a constraint that has too many states for serving.
+    # Typical causes of this error are schemas with lots of text (for example, very long property or enum names),
+    # schemas with long array length limits (especially when nested), or schemas using complex value matchers 
+    # (for example, integers or numbers with minimum/maximum bounds or strings with complex formats like date-time)', 'status': 'INVALID_ARGUMENT'}}
+    # system: System
+    # interfaces: Interfaces
+    staticroutes: str = ""
+    dhcpd: Dhcpd
+    dhcpdv6: Dhcpdv6
+    snmpd: Snmpd
+    diag: Diag
+    syslog: Syslog
+    nat: Nat
+    filter: Filter
+    shaper: str = ""
+    ipsec: Ipsec
+    aliases: str = ""
+    proxyarp: str = ""
+    cron: Cron
+    wol: str = ""
+    rrd: Rrd
+    widgets: Widgets
+    openvpn: str = ""
+    dnshaper: str = ""
+    unbound: Unbound
+    vlans: str = ""
+    qinqs: str = ""
+    gateways: str = ""
+    captiveportal: str = ""
+    dnsmasq: str = ""
+    ntpd: Ntpd
+    ppps: str = ""
+
+
+class PfSenseConfig(PfSenseOutput):
     """
     PfSense configuration schema model.
 
