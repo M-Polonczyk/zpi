@@ -10,36 +10,38 @@ const App = () => {
   const chatBodyRef = useRef();
 
   const generateBotResponse = async (history) => {
-    //Helper function to update chat history
-    const updateHistory = (text, isError = false) => {
-      setChatHistory(prev => [...prev.filter(msg => msg.text !== "Thinking..."), {role: "model", text, isError}]);
-    }
-
-    // Format chat history for API request
-    history = history.map(({role, text}) => ({role, parts: [{text}] }));
-
-
-
-    const requestOptions = {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({contents: history})
-    }
-
-    try{
-      // Make the API call to get the bot's response
-      const response = await fetch(import.meta.env.VITE_API_URL, requestOptions);
-      const data = await response.json();
-      if(!response.ok) throw new Error(data.error.message || "Something went wrong!");
-
-      // Clean and update chat history with bot's response
-      const apiResponseText = data.candidates[0].content.parts[0].text.replace(/\*\*(.*?)\*\*/g, "$1").trim();
-      updateHistory(apiResponseText);
-    } catch (error){
-      updateHistory(error.mssage, true);
-    }
-
+  const updateHistory = (text, isError = false) => {
+    setChatHistory(prev => [
+      ...prev.filter(msg => msg.text !== "Thinking..."),
+      { role: "model", text, isError }
+    ]);
   };
+
+  // Get the last user message
+  const lastUserMessage = history.filter(msg => msg.role === "user").pop()?.text || "";
+  // ZMIENIĆ JEŻELI CHCEMY ROBIĆ UPDATE ROUTERA
+  const commit = false;
+  const requestOptions = {
+    method: "POST",
+    headers: {
+      "accept": "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ text: lastUserMessage })
+  };
+
+  try {
+    const response = await fetch(`http://localhost:8000/api/pfsense/?commit=${commit}`, requestOptions);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "Something went wrong!");
+
+    const apiResponseText = data.response || JSON.stringify(data); // Customize based on actual API response structure
+    updateHistory(apiResponseText.trim());
+  } catch (error) {
+    updateHistory(error.message || "Failed to get a response.", true);
+  }
+};
+
 
   useEffect(() => {
     // Auto-scroll whenever chat history updates
