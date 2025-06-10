@@ -37,7 +37,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class EmptyContent(BaseModel):
-    pass
+    empty: str | None = Field(default=None, exclude=True)
 
 
 def validate_ipv4_address(value: str | None) -> str | None:
@@ -495,8 +495,7 @@ class FilterRule(BaseModel):
 
 
 class FilterSeparatorDetail(BaseModel):  # Renamed from FilterSeparatorWan
-    # For <wan></wan> inside <separator>
-    pass  # Empty as per example
+    empty: str | None = Field(default=None, exclude=True)
 
 
 class FilterSeparator(BaseModel):
@@ -645,7 +644,7 @@ class Revision(BaseModel):
 
 # TODO: write this model
 class NtpdGps(BaseModel):
-    pass
+    empty: str | None = Field(default=None, exclude=True)
 
 
 class Ntpd(BaseModel):

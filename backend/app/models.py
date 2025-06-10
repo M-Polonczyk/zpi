@@ -56,27 +56,35 @@ class UsersPublic(SQLModel):
     data: list[UserPublic]
     count: int
 
+
 class Prompt(SQLModel):
     text: str = Field(
-        min_length=1, max_length=1000, description="The prompt text to be processed.",
+        min_length=1,
+        max_length=1000,
+        description="The prompt text to be processed.",
     )
     timestamp: str = Field(
-        description="The timestamp when the prompt was created or processed.", default_factory=lambda: datetime.now().isoformat(),
+        description="The timestamp when the prompt was created or processed.",
+        default_factory=lambda: datetime.now().isoformat(),
     )
 
-# Generic message
+
 class Message(SQLModel):
+    """Generic message."""
+
     message: str
 
 
-# JSON payload containing access token
 class Token(SQLModel):
+    """JSON payload containing access token and token type."""
+
     access_token: str
     token_type: str = "bearer"
 
 
-# Contents of JWT token
 class TokenPayload(SQLModel):
+    """Contents of JWT token"""
+
     sub: str | None = None
 
 
