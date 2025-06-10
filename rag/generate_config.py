@@ -58,7 +58,7 @@ def create_prompt(context, description, config: PfSense | None = None) -> str:
 
 def generate_content_from_model(prompt) -> PfSense | None:
     response = client.models.generate_content(
-        model="gemini-2.5-flash-preview-05-20",
+        model="gemini-2.0-flash",
         contents=[
             types.Content(
                 parts=[types.Part(text=prompt)],
