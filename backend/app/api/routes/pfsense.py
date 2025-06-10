@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 import uuid
 from typing import Any
 
@@ -12,6 +13,7 @@ from app.pfsense.utils import (
     fetch_pfsense_config,
     push_pfsense_config,
     validate_pfsense_config,
+    load_pfsense_config_from_file
 )
 
 router = APIRouter(prefix="/pfsense", tags=["pfsense"])
@@ -36,7 +38,8 @@ async def push_config(
     Push configuration to Pfsense based on the provided prompt.
     """
     logging.info("Received prompt: %s", prompt.text)
-    config = fetch_pfsense_config()
+    # config = fetch_pfsense_config()
+    config = load_pfsense_config_from_file(str(Path("data/example_config.xml").absolute()))
     if not config:
         logging.error("Configuration not found")
         raise HTTPException(status_code=404, detail="Configuration not found")
