@@ -36,6 +36,7 @@ async def push_config(
 ) -> Any:
     """Push configuration to Pfsense based on the provided prompt."""
     logging.info("Received prompt: %s", prompt.text)
+    # TODO: Remove load_pfsense_config_from_file and use fetch_pfsense_config in production
     # config = fetch_pfsense_config()
     config = load_pfsense_config_from_file(
         str(Path("data/example_config.xml").absolute())

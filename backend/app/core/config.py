@@ -93,6 +93,14 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER: EmailStr
     FIRST_SUPERUSER_PASSWORD: str
 
+    PFSENSE_HOST: str = "pfsense.home.arpa"
+    PFSENSE_USERNAME: str = "admin"
+    PFSENSE_PASSWORD: str = "pfsense"
+    PFSENSE_CONFIG_DIR: str = "/conf/config.xml"
+    PFSENSE_BACKUP_CONFIG_DIR: str = "/conf/config.xml.bak"
+
+    OLLAMA_HOST: HttpUrl | None = None
+
     GEMINI_API_KEY: str | None = None
 
     # def _check_default_secret(self, var_name: str, value: str | None) -> None:
