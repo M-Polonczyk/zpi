@@ -50,7 +50,7 @@ services:
         - VITE_API_URL=${VITE_API_URL?Variable not set}
     ports:
       - 80:80
-    restart: always
+    restart: unless-stopped
 
 volumes:
   ollama_data:

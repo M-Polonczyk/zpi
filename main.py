@@ -66,7 +66,7 @@ def main():
     # print("✅ Wygenerowana zmiana:")
     # print(updated_config)
     # print(f"{updated_config.dhcpd.lan.range=}")
-    # change_dhcp_range_example()
+    change_dhcp_range_example()
 
 
 if __name__ == "__main__":
