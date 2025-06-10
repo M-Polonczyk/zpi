@@ -1,8 +1,9 @@
 import os
 
-from dotenv import load_dotenv
-
+# TODO: Move to a app.core.config.settings module
 if os.path.exists(".env"):
+    from dotenv import load_dotenv
+
     load_dotenv()
 
 CONFIG_DIR = os.environ.get("CONFIG_DIR", "/conf/config.xml")

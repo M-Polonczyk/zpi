@@ -31,13 +31,22 @@ Example usage:
 
 import ipaddress
 import re
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
 
 class EmptyContent(BaseModel):
-    empty: str | None = Field(default=None, exclude=True)
+    """Empty content placeholder with proper type definition for API compatibility."""
+    schema_compat_dummy_field: Optional[str] = Field(
+        default=None, 
+        description="Internal dummy field for API schema compatibility. Should not be set or relied upon.",
+    )
+    class Config:
+        extra = "ignore"
+    
+    def model_dump(self, **kwargs):
+        return {}
 
 
 def validate_ipv4_address(value: str | None) -> str | None:
@@ -495,7 +504,7 @@ class FilterRule(BaseModel):
 
 
 class FilterSeparatorDetail(BaseModel):  # Renamed from FilterSeparatorWan
-    empty: str | None = Field(default=None, exclude=True)
+    empty: str | None = None
 
 
 class FilterSeparator(BaseModel):
@@ -644,7 +653,7 @@ class Revision(BaseModel):
 
 # TODO: write this model
 class NtpdGps(BaseModel):
-    empty: str | None = Field(default=None, exclude=True)
+    empty: str | None = None
 
 
 class Ntpd(BaseModel):

@@ -2,16 +2,14 @@ import json
 from pathlib import Path
 
 import numpy as np
+from pydantic import BaseModel
 import requests
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-
 from google import genai
 from google.genai import types
 
-from app.core.config import settings
-
-from app.pfsense.config import PfSense
+from pfsense.config import PfSense
 
 data = np.load(Path("data/file_embeddings.npz"), allow_pickle=True)
 fragmenty = data["fragmenty"]
@@ -33,7 +31,7 @@ config = types.GenerateContentConfig(
         response_schema=PfSense,
         response_mime_type="application/json",
         thinking_config=types.ThinkingConfig(
-            thinking_budget=0,  # Use `0` to turn off thinking
+            thinking_budget=128,  # Use `0` to turn off thinking
         ),
     )
 
@@ -60,7 +58,7 @@ def create_prompt(context, description, config: PfSense | None = None) -> str:
 
 def generate_content_from_model(prompt) -> PfSense | None:
     response = client.models.generate_content(
-        model="gemini-2.5-flash-preview-05-20",
+        model="gemini-2.5-pro-preview-06-05",
         contents=[
             types.Content(
                 parts=[types.Part(text=prompt)],
@@ -68,9 +66,14 @@ def generate_content_from_model(prompt) -> PfSense | None:
         ],
         config=config,
     )
-    if response.text:
+    if isinstance(response.parsed, PfSense):
+        print(f"{response.parsed=}")
+        return response.parsed
+    if isinstance(response.parsed, BaseModel):
         print(f"{response=}")
-        print(f"{response.model_dump()=}")
+        return PfSense(**response.parsed.model_dump())
+    if isinstance(response.text, str):
+        print(f"{response.text=}")
         return PfSense(**json.loads(response.text))
     return None
 
