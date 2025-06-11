@@ -94,10 +94,12 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_PASSWORD: str
 
     PFSENSE_HOST: str = "pfsense.home.arpa"
+    PFSENSE_PORT: int = 8022
     PFSENSE_USERNAME: str = "admin"
     PFSENSE_PASSWORD: str = "pfsense"
     PFSENSE_CONFIG_DIR: str = "/conf/config.xml"
     PFSENSE_BACKUP_CONFIG_DIR: str = "/conf/config.xml.bak"
+    PFSENSE_KEY_FILE: str | None = None
 
     OLLAMA_HOST: HttpUrl | None = None
 

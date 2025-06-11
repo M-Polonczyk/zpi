@@ -4,6 +4,7 @@ import tempfile
 import paramiko
 import xmltodict
 
+from app.core.config import settings
 from .config.schema import PfSenseConfig
 from .config.settings import (
     BACKUP_CONFIG_DIR,
@@ -17,19 +18,37 @@ from .config.settings import (
 class PfSenseError(Exception):
     """Custom exception for pfSense operations."""
 
-def fetch_pfsense_config(
-    key_filepath: str | None = None,
-) -> PfSenseConfig:
+
+def connect() -> paramiko.SSHClient:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    if key_filepath:
-        key = paramiko.RSAKey.from_private_key_file(key_filepath)
-        client.connect(PFSENSE_HOST, username=PFSENSE_USERNAME, pkey=key)
-    else:
+    try:
+        if settings.PFSENSE_KEY_FILE:
+            key = paramiko.RSAKey.from_private_key_file(settings.PFSENSE_KEY_FILE)
+            client.connect(
+                settings.PFSENSE_HOST,
+                port=settings.PFSENSE_PORT,
+                username=settings.PFSENSE_USERNAME,
+                pkey=key,
+            )
         client.connect(
-            PFSENSE_HOST, username=PFSENSE_USERNAME, password=PFSENSE_PASSWORD,
+            settings.PFSENSE_HOST,
+            port=settings.PFSENSE_PORT,
+            username=settings.PFSENSE_USERNAME,
+            password=settings.PFSENSE_PASSWORD,
         )
+    except paramiko.AuthenticationException as e:
+        logging.error("Authentication failed when connecting to pfSense: %s", e)
+        raise PfSenseError("Authentication failed") from e
+    except paramiko.SSHException as e:
+        logging.error("SSH connection failed: %s", e)
+        raise PfSenseError("SSH connection failed") from e
+    return client
+
+
+def fetch_pfsense_config() -> PfSenseConfig:
+
+    client = connect()
 
     _, stdout, stderr = client.exec_command(f"cat {CONFIG_DIR}")
 
@@ -48,7 +67,6 @@ def fetch_pfsense_config(
     return PfSenseConfig(**config_dict["pfsense"])
 
 
-
 def push_pfsense_config(config: PfSenseConfig) -> int:
     """Push a new configuration to the pfSense device.
 
@@ -61,16 +79,11 @@ def push_pfsense_config(config: PfSenseConfig) -> int:
     remote_config = CONFIG_DIR
     backup_config = BACKUP_CONFIG_DIR
 
-    try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(PFSENSE_HOST, username=PFSENSE_USERNAME, password=PFSENSE_PASSWORD)
-    except paramiko.AuthenticationException:
-        return 0
+    client = connect()
 
-    ssh.exec_command(f"cp {remote_config} {backup_config}")
+    client.exec_command(f"cp {remote_config} {backup_config}")
 
-    sftp = ssh.open_sftp()
+    sftp = client.open_sftp()
     # Convert config (Pydantic model) to XML string
     config_dict = {"pfsense": config.model_dump(by_alias=True)}
     config_xml = xmltodict.unparse(config_dict, pretty=True)
@@ -85,11 +98,11 @@ def push_pfsense_config(config: PfSenseConfig) -> int:
     sftp.put(local_path, "/tmp/config.xml")
     sftp.close()
 
-    ssh.exec_command(f"mv /tmp/config.xml {remote_config}")
-    ssh.exec_command("rm /tmp/config.cache")
-    ssh.exec_command("/etc/rc.reload_all")
+    client.exec_command(f"mv /tmp/config.xml {remote_config}")
+    client.exec_command("rm /tmp/config.cache")
+    client.exec_command("/etc/rc.reload_all")
 
-    ssh.close()
+    client.close()
     return 1
 
 
@@ -123,10 +136,13 @@ def _validate_dhcp_range_consistency(config: PfSenseConfig) -> bool:
 
     try:
         import ipaddress
+
         from_ip = ipaddress.IPv4Address(dhcp_range.from_)
         to_ip = ipaddress.IPv4Address(dhcp_range.to)
         if from_ip >= to_ip:
-            logging.error("[!] DHCP range 'from' address must be less than 'to' address.")
+            logging.error(
+                "[!] DHCP range 'from' address must be less than 'to' address."
+            )
             return False
     except ValueError as e:
         logging.exception("[!] Invalid DHCP range addresses: %r", e)
@@ -139,6 +155,7 @@ def _validate_dhcp_subnet_consistency(config: PfSenseConfig) -> bool:
     """Validate that DHCP range is within the LAN subnet."""
     try:
         import ipaddress
+
         lan_subnet = f"{config.interfaces.lan.ipaddr}/{config.interfaces.lan.subnet}"
         lan_network = ipaddress.IPv4Network(lan_subnet, strict=False)
 
